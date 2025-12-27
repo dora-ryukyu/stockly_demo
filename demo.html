@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stockly (仮) - 日用品・在庫管理</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Noto+Sans+JP:wght@400;700&family=M+PLUS+Rounded+1c:wght@700&family=Zen+Kaku+Gothic+New:wght@400;700&family=Exo+2:wght@600&family=Zen+Old+Mincho:wght@700&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Barcode Library (html5-qrcode) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        /* --- CSS Variables & Themes --- */
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --primary-color: #8eb94e;
+            --text-color: #2c3e50;
+            --accent-color: #e67e22;
+            --border-radius: 12px;
+            --font-family: 'Noto Sans JP', sans-serif;
+            --shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            --border: 1px solid #eee;
+        }
+
+        body.theme-cyber {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.9);
+            --primary-color: #22d3ee;
+            --text-color: #f1f5f9;
+            --accent-color: #f472b6;
+            --border-radius: 4px;
+            --font-family: 'Exo 2', sans-serif;
+            --shadow: 0 0 15px rgba(34, 211, 238, 0.3);
+            --border: 1px solid #334155;
+        }
+
+        body.theme-vivid {
+            --bg-color: #ffffff;
+            --card-bg: #ffffff;
+            --primary-color: #fde047;
+            --text-color: #000000;
+            --accent-color: #ff006e;
+            --border-radius: 0px;
+            --font-family: 'M PLUS Rounded 1c', sans-serif;
+            --shadow: 6px 6px 0px #000000;
+            --border: 3px solid #000000;
+        }
+
+        body.theme-retro {
+            --bg-color: #f4ece1;
+            --card-bg: #fffcf9;
+            --primary-color: #a0522d;
+            --text-color: #4a3728;
+            --accent-color: #d2691e;
+            --border-radius: 2px;
+            --font-family: 'Zen Old Mincho', serif;
+            --shadow: 2px 2px 10px rgba(74, 55, 40, 0.1);
+            --border: 1px solid #d3c4b1;
+        }
+
+        body.theme-mint {
+            --bg-color: #e0f2f1;
+            --card-bg: #ffffff;
+            --primary-color: #4db6ac;
+            --text-color: #004d40;
+            --accent-color: #ff8a65;
+            --border-radius: 20px;
+            --font-family: 'Zen Kaku Gothic New', sans-serif;
+            --shadow: 0 8px 15px rgba(77, 182, 172, 0.1);
+            --border: 1px solid #b2dfdb;
+        }
+
+        body.theme-midnight {
+            --bg-color: #020617;
+            --card-bg: #1e1b4b;
+            --primary-color: #818cf8;
+            --text-color: #e0e7ff;
+            --accent-color: #fbbf24;
+            --border-radius: 12px;
+            --font-family: 'Montserrat', sans-serif;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            --border: 1px solid #312e81;
+        }
+
+        /* --- Global Styles --- */
+        * {
+            box-sizing: border-box;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            padding-bottom: 75px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Tab Navigation */
+        nav.tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 65px;
+            background: var(--card-bg);
+            border-top: var(--border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0.5;
+            font-size: 0.7rem;
+        }
+
+        .tab-item.active {
+            opacity: 1;
+            color: var(--accent-color);
+        }
+
+        .tab-item-center {
+            position: relative;
+            top: -15px;
+        }
+
+        .tab-item-center .icon-bg {
+            background: var(--accent-color);
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* UI elements */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            border: var(--border);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .item-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-info h3 {
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
+        }
+
+        .item-meta {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-bottom: 6px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 0.7rem;
+            background: var(--primary-color);
+            color: #000;
+            margin-right: 5px;
+            font-weight: bold;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.05);
+            height: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.4s;
+        }
+
+        .stock-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 65px;
+        }
+
+        .btn-qty {
+            background: var(--primary-color);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Modals */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: var(--border);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn {
+            padding: 12px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: var(--border);
+            border-radius: var(--border-radius);
+            background: var(--card-bg);
+            color: var(--text-color);
+            margin-bottom: 12px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        /* Settings View Styles */
+        .settings-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            border: var(--border);
+            margin-bottom: 15px;
+        }
+
+        .settings-card h2 {
+            font-size: 1rem;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-color);
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: var(--border);
+            font-size: 0.85rem;
+        }
+
+        .tag-remove {
+            color: #ef4444;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            background: #000;
+        }
+
+        .barcode-helper {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--accent-color);
+        }
+    </style>
+</head>
+
+<body class="theme-natural">
+
+    <div class="container">
+        <!-- View: Inventory -->
+        <div id="view-inventory" class="view active">
+            <header>
+                <h1>Stockly (仮)</h1>
+            </header>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div>不足 / 在庫切</div>
+                    <div class="stat-value" id="count-out">0</div>
+                </div>
+                <div class="stat-card">
+                    <div>期限間近</div>
+                    <div class="stat-value" id="count-exp">0</div>
+                </div>
+            </div>
+            <div style="margin-bottom:15px; display:flex; gap:10px;">
+                <input type="text" id="main-search" placeholder="アイテムを探す..." oninput="renderItems()">
+                <select id="filter-loc" style="width:130px" onchange="renderItems()">
+                    <option value="">全ての場所</option>
+                </select>
+            </div>
+            <div id="item-list"></div>
+        </div>
+
+        <!-- View: Settings -->
+        <div id="view-settings" class="view">
+            <header>
+                <h1>設定とカスタマイズ</h1>
+            </header>
+
+            <div class="settings-card">
+                <h2>デザインテーマの選択</h2>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                    <button class="btn btn-secondary" onclick="setTheme('natural')">🌿 Natural</button>
+                    <button class="btn btn-secondary" onclick="setTheme('cyber')">🚀 Cyber</button>
+                    <button class="btn btn-secondary" onclick="setTheme('vivid')">🎨 Vivid</button>
+                    <button class="btn btn-secondary" onclick="setTheme('retro')">📜 Retro</button>
+                    <button class="btn btn-secondary" onclick="setTheme('mint')">🍬 Mint</button>
+                    <button class="btn btn-secondary" onclick="setTheme('midnight')">🌑 Midnight</button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h2>場所(マスタ)の管理</h2>
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <input type="text" id="new-loc-input" placeholder="新しい場所(例: 倉庫)" style="margin-bottom:0;">
+                    <button class="btn btn-primary" style="padding: 0 20px;" onclick="addLocation()">追加</button>
+                </div>
+                <div id="location-tags" class="tag-list"></div>
+            </div>
+
+            <div class="settings-card" style="opacity:0.6;">
+                <h2>システム</h2>
+                <p style="font-size:0.8rem;">PHPサーバー連携を有効にすると、データのクラウド同期が可能になります。</p>
+                <button class="btn btn-secondary" style="width:100%"
+                    onclick="alert('PHP実装時に使用可能になります')">バックアップデータの出力</button>
+                <button class="btn btn-secondary" style="width:100%; margin-top:10px; color:#ef4444;"
+                    onclick="resetAll()">全データのリセット</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation Bar -->
+    <nav class="tab-bar">
+        <div class="tab-item active" id="tab-inventory" onclick="switchView('inventory')">
+            <i data-lucide="home"></i><span>在庫一覧</span>
+        </div>
+        <div class="tab-item tab-item-center" onclick="openAddModal()">
+            <div class="icon-bg"><i data-lucide="plus" style="width:32px; height:32px;"></i></div>
+            <span>追加</span>
+        </div>
+        <div class="tab-item" id="tab-settings" onclick="switchView('settings')">
+            <i data-lucide="settings-2"></i><span>設定</span>
+        </div>
+    </nav>
+
+    <!-- Item Modal -->
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">アイテムを登録</h2>
+
+            <!-- Scanner Area -->
+            <div id="scanner-area" style="display:none;">
+                <div id="reader"></div>
+                <p style="text-align:center; font-size:0.8rem; margin:10px 0;">バーコードを枠に合わせてください。</p>
+                <button class="btn btn-secondary" style="width:100%" onclick="stopScanner()">中断する</button>
+            </div>
+
+            <div id="form-area">
+                <button class="btn btn-primary" style="width:100%; margin-bottom:15px; gap:8px;"
+                    onclick="startScanner()">
+                    <i data-lucide="scan-barcode"></i> バーコードスキャン
+                </button>
+
+                <label>アイテム名 *</label><input type="text" id="in-name" placeholder="商品名を入力..." required>
+
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:2">
+                        <label>保管場所</label><select id="in-loc"></select>
+                    </div>
+                    <div style="flex:1">
+                        <label>現在の量</label><input type="number" id="in-qty" value="100">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1">
+                        <label>単位</label><input type="text" id="in-unit" value="%">
+                    </div>
+                    <div style="flex:1">
+                        <label>通知ライン</label><input type="number" id="in-threshold" value="20">
+                    </div>
+                </div>
+
+                <label>期限 (賞味/消費/使用)</label><input type="date" id="in-expiry">
+
+                <label>JANコード (読み取り結果)</label>
+                <input type="text" id="in-barcode" placeholder="スキャンまたは直接入力" readonly>
+
+                <div id="barcode-helper" style="display:none;" class="barcode-helper">
+                    <span style="font-size:0.75rem;">JANコードから名前を検索:</span><br>
+                    <div style="margin-top:5px; display:flex; gap:10px;">
+                        <a href="#" id="link-yahoo" target="_blank"
+                            style="color:var(--accent-color); font-size:0.9rem; font-weight:bold;">Yahoo!ショッピング</a>
+                        <a href="#" id="link-google" target="_blank"
+                            style="color:var(--accent-color); font-size:0.9rem; font-weight:bold;">Google検索</a>
+                    </div>
+                </div>
+
+                <label>メモ</label><textarea id="in-memo" rows="2" placeholder="詰め替え用、お徳用パックなど"></textarea>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+                    <button class="btn btn-primary" onclick="saveItem()">保存する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Initial State ---
+        let items = JSON.parse(localStorage.getItem('stockly_items')) || [];
+        let locations = JSON.parse(localStorage.getItem('stockly_locs')) || ["キッチン", "洗面所", "パントリー"];
+        let settings = JSON.parse(localStorage.getItem('stockly_sets')) || { theme: 'natural' };
+        let editingId = null;
+        let html5QrCode = null;
+
+        // --- Core Functions ---
+        function init() {
+            setTheme(settings.theme);
+            renderItems();
+            renderLocations();
+            lucide.createIcons();
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewId}`).classList.add('active');
+            document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(`tab-${viewId}`).classList.add('active');
+            if (viewId === 'inventory') renderItems();
+        }
+
+        function setTheme(t) {
+            document.body.className = `theme-${t}`;
+            settings.theme = t;
+            localStorage.setItem('stockly_sets', JSON.stringify(settings));
+        }
+
+        // --- Master Data (Locations) ---
+        function renderLocations() {
+            // Settings Tags
+            const tagBox = document.getElementById('location-tags');
+            tagBox.innerHTML = locations.map(l => `
+            <span class="tag">${l}<span class="tag-remove" onclick="removeLocation('${l}')">×</span></span>
+        `).join('');
+
+            // Dropdowns
+            const mainFilter = document.getElementById('filter-loc');
+            const modalSelect = document.getElementById('in-loc');
+            const opts = '<option value="">場所を選択...</option>' + locations.map(l => `<option value="${l}">${l}</option>`).join('');
+            mainFilter.innerHTML = '<option value="">全ての場所</option>' + locations.map(l => `<option value="${l}">${l}</option>`).join('');
+            modalSelect.innerHTML = opts;
+        }
+
+        function addLocation() {
+            const input = document.getElementById('new-loc-input');
+            const val = input.value.trim();
+            if (val && !locations.includes(val)) {
+                locations.push(val);
+                localStorage.setItem('stockly_locs', JSON.stringify(locations));
+                input.value = '';
+                renderLocations();
+            }
+        }
+
+        function removeLocation(l) {
+            if (confirm(`「${l}」をリストから削除しますか？`)) {
+                locations = locations.filter(x => x !== l);
+                localStorage.setItem('stockly_locs', JSON.stringify(locations));
+                renderLocations();
+            }
+        }
+
+        // --- Inventory Management ---
+        function renderItems() {
+            const list = document.getElementById('item-list');
+            const search = document.getElementById('main-search').value.toLowerCase();
+            const locFilter = document.getElementById('filter-loc').value;
+            list.innerHTML = '';
+
+            let oos = 0, exp = 0;
+            const now = new Date();
+
+            items.filter(i => i.name.toLowerCase().includes(search) && (!locFilter || i.location === locFilter))
+                .forEach(item => {
+                    if (item.quantity <= item.threshold) oos++;
+                    const diff = item.expiry ? Math.ceil((new Date(item.expiry) - now) / 86400000) : null;
+                    if (diff !== null && diff <= 7) exp++;
+
+                    const isPct = item.unit === '%';
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                    <div class="item-info">
+                        <div class="item-meta">
+                            <span class="badge">${item.location}</span>
+                            <span>⏳ ${item.expiry || '期限なし'}</span>
+                        </div>
+                        <h3>${item.name}</h3>
+                        ${isPct ? `<div class="progress-container"><div class="progress-bar" style="width:${item.quantity}%; background:${item.quantity <= item.threshold ? 'var(--accent-color)' : 'var(--primary-color)'}"></div></div>` : ''}
+                        <div style="font-size:0.75rem; opacity:0.6;">${item.memo || ''}</div>
+                    </div>
+                    <div class="stock-control">
+                        <button class="btn-qty" onclick="updateQty('${item.id}', ${isPct ? 10 : 1})">+</button>
+                        <div style="font-weight:bold;">${item.quantity}<span style="font-size:0.7rem">${item.unit}</span></div>
+                        <button class="btn-qty" onclick="updateQty('${item.id}', ${isPct ? -10 : -1})">-</button>
+                        <div style="margin-top:10px; display:flex; gap:12px; opacity:0.3;">
+                            <i data-lucide="edit-3" size="15" style="cursor:pointer" onclick="openEditModal('${item.id}')"></i>
+                            <i data-lucide="trash-2" size="15" style="color:#ef4444; cursor:pointer" onclick="deleteItem('${item.id}')"></i>
+                        </div>
+                    </div>
+                `;
+                    list.appendChild(card);
+                });
+            document.getElementById('count-out').innerText = oos;
+            document.getElementById('count-exp').innerText = exp;
+            lucide.createIcons();
+        }
+
+        function updateQty(id, delta) {
+            const i = items.find(x => x.id === id);
+            if (i) {
+                i.quantity = Math.max(0, i.quantity + delta);
+                if (i.unit === '%') i.quantity = Math.min(100, i.quantity);
+                save();
+            }
+        }
+
+        function saveItem() {
+            const name = document.getElementById('in-name').value;
+            if (!name) return;
+            const data = {
+                id: editingId || Date.now().toString(),
+                name,
+                location: document.getElementById('in-loc').value || '未指定',
+                quantity: parseInt(document.getElementById('in-qty').value),
+                unit: document.getElementById('in-unit').value,
+                threshold: parseInt(document.getElementById('in-threshold').value),
+                expiry: document.getElementById('in-expiry').value,
+                barcode: document.getElementById('in-barcode').value,
+                memo: document.getElementById('in-memo').value
+            };
+            if (editingId) items[items.findIndex(x => x.id === editingId)] = data;
+            else items.push(data);
+            save(); closeModal();
+        }
+
+        function deleteItem(id) { if (confirm('アイテムを削除しますか？')) { items = items.filter(x => x.id !== id); save(); } }
+        function save() { localStorage.setItem('stockly_items', JSON.stringify(items)); renderItems(); }
+        function resetAll() { if (confirm('全データを削除します。元には戻せません。')) { localStorage.clear(); location.reload(); } }
+
+        // --- Modal & Scanner ---
+        function openAddModal() {
+            editingId = null; resetForm();
+            document.getElementById('modal-title').innerText = "アイテムの新規登録";
+            document.getElementById('item-modal').style.display = 'flex';
+        }
+        function openEditModal(id) {
+            const i = items.find(x => x.id === id); editingId = id;
+            document.getElementById('modal-title').innerText = "アイテムの編集";
+            document.getElementById('in-name').value = i.name;
+            document.getElementById('in-loc').value = i.location;
+            document.getElementById('in-qty').value = i.quantity;
+            document.getElementById('in-unit').value = i.unit;
+            document.getElementById('in-threshold').value = i.threshold;
+            document.getElementById('in-expiry').value = i.expiry;
+            document.getElementById('in-barcode').value = i.barcode;
+            document.getElementById('in-memo').value = i.memo;
+            if (i.barcode) setupBarcodeLinks(i.barcode);
+            document.getElementById('item-modal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('item-modal').style.display = 'none'; stopScanner(); }
+        function resetForm() {
+            document.getElementById('in-name').value = ''; document.getElementById('in-qty').value = 100;
+            document.getElementById('in-unit').value = '%'; document.getElementById('in-threshold').value = 20;
+            document.getElementById('in-expiry').value = ''; document.getElementById('in-barcode').value = '';
+            document.getElementById('in-memo').value = ''; document.getElementById('barcode-helper').style.display = 'none';
+        }
+
+        // --- Improved Scanner Logic (Immediate Response) ---
+        function startScanner() {
+            document.getElementById('form-area').style.display = 'none';
+            document.getElementById('scanner-area').style.display = 'block';
+
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 20, qrbox: { width: 280, height: 160 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                // 即座に読み取りを確定させる
+                document.getElementById('in-barcode').value = decodedText;
+                setupBarcodeLinks(decodedText);
+                if (navigator.vibrate) navigator.vibrate(150);
+                stopScanner();
+
+                // シンプルな名前検索試行 (外部制限のため成功時のみ反映)
+                fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
+                    .then(r => r.json()).then(d => { if (d.status === 1) document.getElementById('in-name').value = d.product.product_name; });
+            });
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode = null;
+                    document.getElementById('form-area').style.display = 'block';
+                    document.getElementById('scanner-area').style.display = 'none';
+                }).catch(() => {
+                    document.getElementById('form-area').style.display = 'block';
+                    document.getElementById('scanner-area').style.display = 'none';
+                });
+            }
+        }
+
+        function setupBarcodeLinks(code) {
+            document.getElementById('barcode-helper').style.display = 'block';
+            document.getElementById('link-yahoo').href = `https://shopping.yahoo.co.jp/search?p=${code}`;
+            document.getElementById('link-google').href = `https://www.google.com/search?q=JAN+${code}`;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
