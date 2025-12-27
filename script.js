@@ -241,58 +241,122 @@ function resetForm() {
 
 // --- Improved Scanner Logic (Immediate Response) ---
 function startScanner() {
-  document.getElementById("form-area").style.display = "none";
-  document.getElementById("scanner-area").style.display = "block";
+    document.getElementById("form-area").style.display = "none";
+    document.getElementById("scanner-area").style.display = "block";
 
-  html5QrCode = new Html5Qrcode("reader", { 
-      formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8 ] 
-  });
-  const config = { fps: 20, qrbox: { width: 280, height: 160 } };
+    // Re-initialize to ensure clean state
+    if (html5QrCode) {
+        html5QrCode.clear(); 
+    }
+    html5QrCode = new Html5Qrcode("reader", { 
+        formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8 ],
+        verbose: false
+    });
 
-  html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-    // 即座に読み取りを確定させる
-    document.getElementById("in-barcode").value = decodedText;
-    setupBarcodeLinks(decodedText);
-    if (navigator.vibrate) navigator.vibrate(150);
-    stopScanner();
+    // Use higher resolution constraints to allow focusing from further away
+    // and limit FPS to reduce CPU usage on high-res streams
+    const constraints = { 
+        facingMode: "environment",
+        focusMode: "continuous", // Android/Chrome specific
+        width: { min: 640, ideal: 1280, max: 1920 },
+        height: { min: 480, ideal: 720, max: 1080 },
+        aspectRatio: 1.0 
+    };
 
-    // シンプルな名前検索試行 (外部制限のため成功時のみ反映)
-    fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.status === 1)
-          document.getElementById("in-name").value = d.product.product_name;
-      });
-  })
-  .then(() => {
-      // Zoom capability check
-      const zoomControl = document.getElementById("zoom-controls");
-      const slider = document.getElementById("zoom-slider");
-      
-      try {
-          // Some browsers/devices might not support this API
-          const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
-          
-          if (capabilities && capabilities.zoom) {
-              zoomControl.style.display = "block";
-              slider.min = capabilities.zoom.min;
-              slider.max = capabilities.zoom.max;
-              slider.step = capabilities.zoom.step;
-              slider.value = capabilities.zoom.value || (capabilities.zoom.min + 0); // Start at minimum (1x)
-              
-              slider.oninput = function() {
-                  html5QrCode.applyVideoConstraints({
-                      advanced: [{ zoom: parseFloat(this.value) }]
-                  });
-              };
-          } else {
-              zoomControl.style.display = "none";
-          }
-      } catch (err) {
-          console.warn("Zoom capabilities not supported:", err);
-          zoomControl.style.display = "none";
-      }
-  });
+    // Larger scanning area relative to viewport
+    const qrboxSize = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+    const config = { 
+        fps: 10, // Lower FPS for better CPU performance on mobile
+        qrbox: { width: qrboxSize, height: qrboxSize * 0.6 },
+        aspectRatio: 1.0
+    };
+
+    html5QrCode.start(constraints, config, (decodedText) => {
+        document.getElementById("in-barcode").value = decodedText;
+        setupBarcodeLinks(decodedText);
+        if (navigator.vibrate) navigator.vibrate(150);
+        stopScanner();
+
+        fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
+        .then((r) => r.json())
+        .then((d) => {
+            if (d.status === 1) document.getElementById("in-name").value = d.product.product_name;
+        });
+    })
+    .then(() => {
+        // Zoom Logic: Try Native -> Fallback to CSS
+        const zoomControl = document.getElementById("zoom-controls");
+        const slider = document.getElementById("zoom-slider");
+        const videoElement = document.querySelector("#reader video");
+        
+        // Reset slider
+        slider.value = 1;
+        zoomControl.style.display = "block"; // Always show slider now
+
+        let useNativeZoom = false;
+        let track = null;
+
+        try {
+            // Get video track to check capabilities
+            if (html5QrCode.getRunningTrackCameraCapabilities) {
+                const caps = html5QrCode.getRunningTrackCameraCapabilities();
+                useNativeZoom = caps && caps.zoom;
+            }
+            
+            // If library helper fails, try raw track access (improves Android support)
+            if (!useNativeZoom) {
+                const stream = videoElement.srcObject;
+                if (stream) {
+                    track = stream.getVideoTracks()[0];
+                    const caps = track.getCapabilities ? track.getCapabilities() : {};
+                    if (caps.zoom) {
+                        useNativeZoom = true;
+                        // Map slider to native range (native is often linear 1-X or logarithmic)
+                        slider.min = caps.zoom.min;
+                        slider.max = caps.zoom.max;
+                        slider.step = caps.zoom.step;
+                        slider.value = track.getSettings().zoom || caps.zoom.min;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log("Native zoom check failed", e);
+        }
+
+        if (useNativeZoom) {
+            console.log("Using Native Zoom");
+            slider.oninput = function() {
+                try {
+                    html5QrCode.applyVideoConstraints({
+                        advanced: [{ zoom: parseFloat(this.value) }]
+                    });
+                } catch(e) {
+                    // Fallback if apply fails mid-stream
+                    if(videoElement) videoElement.style.transform = `scale(${this.value})`; 
+                }
+            };
+        } else {
+            console.log("Using CSS Zoom (Fallback)");
+            // Configure slider for reasonable CSS scale range
+            slider.min = 1;
+            slider.max = 3;
+            slider.step = 0.1;
+            slider.value = 1;
+            
+            slider.oninput = function() {
+                if(videoElement) {
+                    videoElement.style.transform = `scale(${this.value})`;
+                    videoElement.style.transformOrigin = "center center";
+                }
+            };
+        }
+    })
+    .catch((err) => {
+        console.error("Camera start failed", err);
+        alert("カメラの起動に失敗しました。権限を確認してください。");
+        document.getElementById("form-area").style.display = "block";
+        document.getElementById("scanner-area").style.display = "none";
+    });
 }
 
 function stopScanner() {
