@@ -139,7 +139,7 @@ function renderItems() {
                 <button class="btn-qty" onclick="updateQty('${item.id}', ${
         isPct ? -10 : -1
       })">-</button>
-                <div style="margin-top:10px; display:flex; gap:12px; opacity:0.3;">
+                <div style="margin-top:10px; display:flex; gap:12px;">
                     <i data-lucide="edit-3" size="15" style="cursor:pointer" onclick="openEditModal('${
                       item.id
                     }')"></i>

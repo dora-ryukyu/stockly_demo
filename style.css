@@ -119,6 +119,8 @@ nav.tab-bar {
     opacity: 0.5;
     font-size: 0.7rem;
     color: var(--text-color);
+    flex: 1; /* Ensure equal width */
+    width: 0; /* Handle overflow properly */
 }
 
 .tab-item.active {
