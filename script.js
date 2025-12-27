@@ -241,29 +241,57 @@ function resetForm() {
 
 // --- Improved Scanner Logic (Immediate Response) ---
 function startScanner() {
-  document.getElementById("form-area").style.display = "none";
-  document.getElementById("scanner-area").style.display = "block";
+    // UI reset
+    document.getElementById("form-area").style.display = "none";
+    document.getElementById("scanner-area").style.display = "block";
+    document.getElementById("reader").innerText = ""; // Clear loader/previous text
 
-  html5QrCode = new Html5Qrcode("reader", { 
-      formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8 ] 
-  });
-  const config = { fps: 20, qrbox: { width: 280, height: 160 } };
+    // Cleanup previous instance if exists
+    if (html5QrCode) {
+        try {
+            html5QrCode.clear(); 
+        } catch (e) {
+            console.warn("Failed to clear previous instance", e);
+        }
+        html5QrCode = null;
+    }
 
-  html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-    // 即座に読み取りを確定させる
-    document.getElementById("in-barcode").value = decodedText;
-    setupBarcodeLinks(decodedText);
-    if (navigator.vibrate) navigator.vibrate(150);
-    stopScanner();
+    // Initialize
+    html5QrCode = new Html5Qrcode("reader", { 
+        formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8 ],
+        verbose: false
+    });
 
-    // シンプルな名前検索試行 (外部制限のため成功時のみ反映)
-    fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.status === 1)
-          document.getElementById("in-name").value = d.product.product_name;
-      });
-  });
+    const config = { 
+        fps: 20, 
+        qrbox: { width: 250, height: 150 }, // Slightly smaller box to fit screens better
+        aspectRatio: 1.0
+    };
+
+    // Attempt to start
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        (decodedText) => {
+            // Success Callback
+            document.getElementById("in-barcode").value = decodedText;
+            setupBarcodeLinks(decodedText);
+            if (navigator.vibrate) navigator.vibrate(150);
+            stopScanner();
+            
+            // Name lookup
+            fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
+            .then((r) => r.json())
+            .then((d) => {
+                if (d.status === 1) document.getElementById("in-name").value = d.product.product_name;
+            });
+        }
+    ).catch((err) => {
+        // Error Callback
+        console.error("Error starting scanner:", err);
+        alert(`カメラの起動に失敗しました。\nエラー: ${err}\n\n・ブラウザのカメラ権限を許可してください\n・他のアプリでカメラを使用していないか確認してください`);
+        stopScanner();
+    });
 }
 
 function stopScanner() {
