@@ -263,6 +263,35 @@ function startScanner() {
         if (d.status === 1)
           document.getElementById("in-name").value = d.product.product_name;
       });
+  })
+  .then(() => {
+      // Zoom capability check
+      const zoomControl = document.getElementById("zoom-controls");
+      const slider = document.getElementById("zoom-slider");
+      
+      try {
+          // Some browsers/devices might not support this API
+          const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
+          
+          if (capabilities && capabilities.zoom) {
+              zoomControl.style.display = "block";
+              slider.min = capabilities.zoom.min;
+              slider.max = capabilities.zoom.max;
+              slider.step = capabilities.zoom.step;
+              slider.value = capabilities.zoom.value || (capabilities.zoom.min + 0); // Start at minimum (1x)
+              
+              slider.oninput = function() {
+                  html5QrCode.applyVideoConstraints({
+                      advanced: [{ zoom: parseFloat(this.value) }]
+                  });
+              };
+          } else {
+              zoomControl.style.display = "none";
+          }
+      } catch (err) {
+          console.warn("Zoom capabilities not supported:", err);
+          zoomControl.style.display = "none";
+      }
   });
 }
 
